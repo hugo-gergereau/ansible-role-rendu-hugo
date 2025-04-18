@@ -1,0 +1,6 @@
+---
+# Default variables with default values
+mysql_root_password: examplerootPW
+wp_db_name: wordpress
+wp_db_user: example
+wp_db_password: examplePW

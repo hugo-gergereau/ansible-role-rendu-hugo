@@ -1,0 +1,132 @@
+---
+- name: Mise à jour du conteneur Debian
+  apt:
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: Installation des paquets nécessaires sur Debian
+  apt:
+    name:
+      - apache2
+      - php
+      - libapache2-mod-php
+      - php-mysql
+      - mariadb-server
+      - wget
+      - unzip
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Installation des paquets nécessaires sur RedHat
+  dnf:
+    name:
+      - httpd
+      - php
+      - php-mysqlnd
+      - mariadb-server
+      - wget
+      - unzip
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Suppression de la page par défaut d'Apache
+  file:
+    path: /var/www/html/index.html
+    state: absent
+
+- name: Démarrage et activation de MariaDB
+  service:
+    name: mariadb
+    state: started
+    enabled: yes
+  notify: Secure MariaDB
+
+- name: Téléchargement de WordPress
+  unarchive:
+    src: https://wordpress.org/latest.zip
+    dest: /tmp
+    remote_src: yes
+
+- name: Copie des fichiers WordPress
+  copy:
+    src: /tmp/wordpress/
+    dest: /var/www/html/
+    owner: "{{ web_user }}"
+    group: "{{ web_group }}"
+    mode: '0755'
+    remote_src: yes
+
+- name: Vérifier l'existence de wp-config-sample.php
+  stat:
+    path: /var/www/html/wp-config-sample.php
+  register: wp_config_sample
+
+- name: Échouer si wp-config-sample.php n'existe pas
+  fail:
+    msg: "Le fichier wp-config-sample.php n'existe pas."
+  when: not wp_config_sample.stat.exists
+
+- name: Copier wp-config-sample.php vers wp-config.php
+  copy:
+    src: /var/www/html/wp-config-sample.php
+    dest: /var/www/html/wp-config.php
+    owner: "{{ web_user }}"
+    group: "{{ web_group }}"
+    mode: '0640'
+    remote_src: yes
+
+- name: Configurer le fichier wp-config.php
+  lineinfile:
+    path: /var/www/html/wp-config.php
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - { regexp: "database_name_here", line: "define('DB_NAME', '{{ wp_db_name }}');" }
+    - { regexp: "username_here", line: "define('DB_USER', '{{ wp_db_user }}');" }
+    - { regexp: "password_here", line: "define('DB_PASSWORD', '{{ wp_db_password }}');" }
+
+- name: Configuration Apache pour WordPress sur Debian
+  blockinfile:
+    path: /etc/apache2/sites-available/wordpress.conf
+    block: |
+      <VirtualHost *:80>
+          ServerAdmin admin@localhost
+          DocumentRoot /var/www/html/wordpress
+          <Directory /var/www/html/wordpress>
+              AllowOverride All
+          </Directory>
+          ErrorLog ${APACHE_LOG_DIR}/error.log
+          CustomLog ${APACHE_LOG_DIR}/access.log combined
+      </VirtualHost>
+    create: yes
+  when: ansible_os_family == "Debian"
+  notify: Reload Apache
+
+- name: Activation du site WordPress
+  command: a2ensite wordpress.conf
+  when: ansible_os_family == "Debian"
+  notify: Reload Apache
+
+- name: Activation du module rewrite
+  command: a2enmod rewrite
+  when: ansible_os_family == "Debian"
+  notify: Reload Apache
+
+
+- name: Configuration Apache pour WordPress sur RedHat
+  blockinfile:
+    path: /etc/httpd/conf.d/wordpress.conf
+    block: |
+      <VirtualHost *:80>
+          ServerAdmin admin@localhost
+          DocumentRoot /var/www/html/wordpress
+          <Directory /var/www/html/wordpress>
+              AllowOverride All
+          </Directory>
+          ErrorLog ${APACHE_LOG_DIR}/error.log
+          CustomLog ${APACHE_LOG_DIR}/access.log combined
+      </VirtualHost>
+    create: yes
+  when: ansible_os_family == "RedHat"
+  notify: Reload Apache
+

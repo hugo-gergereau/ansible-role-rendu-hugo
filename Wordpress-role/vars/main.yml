@@ -1,0 +1,9 @@
+---
+mysql_root_password: examplerootPW
+wp_db_name: wordpress
+wp_db_user: example
+wp_db_password: examplePW
+apache_service: "{{ 'apache2' if ansible_os_family == 'Debian' else 'httpd' }}"
+web_user: "{{ 'www-data' if ansible_os_family == 'Debian' else 'apache' }}"
+web_group: "{{ 'www-data' if ansible_os_family == 'Debian' else 'apache' }}"
+

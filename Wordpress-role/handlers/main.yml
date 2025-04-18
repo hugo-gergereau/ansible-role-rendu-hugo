@@ -1,0 +1,17 @@
+---
+- name: Secure MariaDB
+  command: >
+    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_password }}';
+    DELETE FROM mysql.user WHERE User='';
+    DROP DATABASE IF EXISTS test;
+    DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%';
+    FLUSH PRIVILEGES;
+    CREATE DATABASE {{ wp_db_name }};
+    CREATE USER '{{ wp_db_user }}'@'localhost' IDENTIFIED BY '{{ wp_db_password }}';
+    GRANT ALL PRIVILEGES ON {{ wp_db_name }}.* TO '{{ wp_db_user }}'@'localhost';
+    FLUSH PRIVILEGES;"
+
+- name: Reload Apache
+  service:
+    name: "{{ apache_service }}"
+    state: reloaded
