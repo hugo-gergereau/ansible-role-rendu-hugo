@@ -1,13 +1,13 @@
 # ansible-role-rendu-hugo
 
 Playbook TEST : 
-
+```
 ---
 - hosts: all
   become: yes
   roles:
     - Wordpress-role
-
+```
 
 ETAPE : 
 
